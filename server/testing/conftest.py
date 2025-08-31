@@ -1,5 +1,25 @@
 #!/usr/bin/env python3
 
+import pytest
+from app import app
+from models import db
+
+@pytest.fixture
+def client():
+    app.config['TESTING'] = True
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+    with app.app_context():
+        db.create_all()
+
+    client = app.test_client()
+
+    yield client
+
+    with app.app_context():
+        db.drop_all()
+
 def pytest_itemcollected(item):
     par = item.parent.obj
     node = item.obj

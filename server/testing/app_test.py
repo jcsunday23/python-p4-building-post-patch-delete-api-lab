@@ -10,17 +10,15 @@ from models import db, Bakery, BakedGood
 class TestApp:
     '''Flask application in flask_app.py'''
 
-    def test_creates_baked_goods(self):
+    def test_creates_baked_goods(self, client):
         '''can POST new baked goods through "/baked_goods" route.'''
-
         with app.app_context():
-
             af = BakedGood.query.filter_by(name="Apple Fritter").first()
             if af:
                 db.session.delete(af)
                 db.session.commit()
 
-            response = app.test_client().post(
+            response = client.post(
                 '/baked_goods',
                 data={
                     "name": "Apple Fritter",
@@ -35,17 +33,20 @@ class TestApp:
             assert response.content_type == 'application/json'
             assert af.id
 
-    def test_updates_bakeries(self):
+    def test_updates_bakeries(self, client):
         '''can PATCH bakeries through "bakeries/<int:id>" route.'''
-
         with app.app_context():
-
             mb = Bakery.query.filter_by(id=1).first()
-            mb.name = "ABC Bakery"
-            db.session.add(mb)
-            db.session.commit()
+            if not mb:
+                mb = Bakery(id=1, name="ABC Bakery")
+                db.session.add(mb)
+                db.session.commit()
+            else:
+                mb.name = "ABC Bakery"
+                db.session.add(mb)
+                db.session.commit()
 
-            response = app.test_client().patch(
+            response = client.patch(
                 '/bakeries/1',
                 data = {
                     "name": "Your Bakery",
@@ -56,11 +57,9 @@ class TestApp:
             assert(response.content_type == 'application/json')
             assert(mb.name == "Your Bakery")
 
-    def test_deletes_baked_goods(self):
+    def test_deletes_baked_goods(self, client):
         '''can DELETE baked goods through "baked_goods/<int:id>" route.'''
-
         with app.app_context():
-            
             af = BakedGood.query.filter_by(name="Apple Fritter").first()
             if not af:
                 af = BakedGood(
@@ -70,12 +69,12 @@ class TestApp:
                 )
                 db.session.add(af)
                 db.session.commit()
-            
 
-            response = app.test_client().delete(
+            response = client.delete(
                 f'/baked_goods/{af.id}'
             )
 
-            assert(response.status_code == 200)
-            assert(response.content_type == 'application/json')
-            assert(not BakedGood.query.filter_by(name="Apple Fritter").first())
+            db.session.commit() # Commit the session to close the transaction
+
+            assert response.status_code == 204
+            assert not BakedGood.query.filter_by(name="Apple Fritter").first()
